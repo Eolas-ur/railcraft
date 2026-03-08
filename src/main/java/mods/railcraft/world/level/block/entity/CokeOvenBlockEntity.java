@@ -49,6 +49,9 @@ public class CokeOvenBlockEntity extends MultiblockBlockEntity<CokeOvenBlockEnti
 
   private final CokeOvenModule cokeOvenModule;
 
+  @Nullable
+  private IFluidHandler fluidHandler;
+
   public CokeOvenBlockEntity(BlockPos blockPos, BlockState blockState) {
     super(RailcraftBlockEntityTypes.COKE_OVEN.get(), blockPos, blockState,
         CokeOvenBlockEntity.class, PATTERN);
@@ -88,10 +91,12 @@ public class CokeOvenBlockEntity extends MultiblockBlockEntity<CokeOvenBlockEnti
               .setValue(CokeOvenBricksBlock.WINDOW, false)
               .setValue(CokeOvenBricksBlock.LIT, false));
       Containers.dropContents(this.level, this.getBlockPos(), this.cokeOvenModule);
+      this.fluidHandler = null;
     } else {
       this.level.setBlockAndUpdate(this.getBlockPos(),
           this.getBlockState().setValue(CokeOvenBricksBlock.WINDOW,
               membership.patternElement().marker() == 'W'));
+      this.fluidHandler = new CokeOvenFluidHandler(membership.master());
     }
     this.level.invalidateCapabilities(this.getBlockPos());
   }
@@ -117,10 +122,6 @@ public class CokeOvenBlockEntity extends MultiblockBlockEntity<CokeOvenBlockEnti
 
   @Nullable
   public IFluidHandler getFluidCap(@Nullable Direction side) {
-    var masterModule = this.getMasterBlockEntity()
-        .map(CokeOvenBlockEntity::getCokeOvenModule);
-    return masterModule
-        .map(CokeOvenModule::getTank)
-        .orElse(null);
+    return this.fluidHandler;
   }
 }

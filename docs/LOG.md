@@ -65,3 +65,44 @@
 The remaining risk is timing: if Mekanism's `BlockCapabilityCache` is created
 during chunk load before the Coke Oven's `evaluate()` cycle runs, the cache
 may miss the invalidation event. This would require Mekanism-side analysis.
+
+---
+
+## External Fluid Handler Wrapper Implementation
+
+### What Was Changed
+
+| File | Change |
+|---|---|
+| `CokeOvenFluidHandler.java` (new) | Drain-only `IFluidHandler` wrapper delegating to master's `StandardTank` |
+| `CokeOvenBlockEntity.java` | Added `fluidHandler` field; wrapper created in `membershipChanged()` on formation, nulled on disband; `getFluidCap()` returns the stored wrapper |
+
+### Why It Was Changed
+
+The raw `StandardTank` was previously exposed directly to external automation
+via the `FluidHandler.BLOCK` capability. While functionally correct (fill was
+blocked by the `disableFill` flag), this exposed the internal tank object
+directly to external mods, which is fragile:
+
+- External mods cannot inspect the `disableFill` flag; they see `fill()` return
+  0 without a clear contract reason.
+- The raw tank is shared with internal recipe processing (`internalFill()`),
+  creating unnecessary coupling.
+- No clean extension point existed for future output-side logic.
+
+The wrapper makes the drain-only contract explicit at the API boundary and
+follows the existing `ValveFluidHandler` pattern used by Railcraft's tank
+blocks.
+
+### Was Gameplay Behaviour Altered Intentionally?
+
+**No.** The drain and query behaviour is identical — the wrapper delegates all
+drain/query methods to the same `StandardTank`. The only behavioural change is
+that `fill()` is rejected by the wrapper itself rather than by the tank's
+internal `disableFill` flag. The external result is the same: `fill()` returns 0.
+
+### Classification
+
+**Compatibility-focused refactor**, not a behavioural fix. The external API
+contract is unchanged (drain-only, same tank contents, same simulate/execute
+semantics). The internal implementation boundary is cleaner.
